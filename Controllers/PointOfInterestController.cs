@@ -1,5 +1,6 @@
 ﻿using CityInfo.API.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CityInfo.API.Controllers
@@ -18,7 +19,7 @@ namespace CityInfo.API.Controllers
                 return NotFound();
 
             return Ok(city.PointsOfInterest);
-            
+
         }
 
         [HttpGet("{pointofinterestid}", Name = "GetPointOfInterest")]
@@ -63,6 +64,50 @@ namespace CityInfo.API.Controllers
                     pointOfInterestId = newPointOfInterest.Id
                 },
                 newPointOfInterest);
+        }
+
+        [HttpPut("{pointofinterestid}")]
+        public ActionResult UpdatePointOfInterest(int cityId, int pointOfInterestId, PointOfInterestUpdateDto request)
+        {
+            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id.Equals(cityId));
+            if (city == null) return NotFound();
+
+            var poi = city.PointsOfInterest.FirstOrDefault(p => p.Id.Equals(pointOfInterestId));
+            if (poi == null) return NotFound();
+
+            poi.Name = request.Name;
+            poi.Description = request.Description;
+
+            return NoContent();
+        }
+
+        [HttpPatch("{pointofinterestid}")]
+        public ActionResult PartiallyUpdatePointOfInterest(int cityId, int pointOfInterestId, 
+            JsonPatchDocument<PointOfInterestUpdateDto> patchDocument)
+        {
+            var city = CitiesDataStore.Current.Cities.FirstOrDefault(c => c.Id.Equals(cityId));
+            if (city == null) return NotFound();
+
+            var pointOfInterestFromStore = city.PointsOfInterest.FirstOrDefault(p => p.Id.Equals(pointOfInterestId));
+            if (pointOfInterestFromStore == null) return NotFound();
+
+            var pointOfInterestToPatch = new PointOfInterestUpdateDto
+            {
+                Name = pointOfInterestFromStore.Name,
+                Description = pointOfInterestFromStore.Description
+            };
+
+            patchDocument.ApplyTo(pointOfInterestToPatch, ModelState);
+
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            if (!TryValidateModel(pointOfInterestToPatch)) return BadRequest(ModelState);
+
+            pointOfInterestFromStore.Name = pointOfInterestToPatch.Name;
+            pointOfInterestFromStore.Description = pointOfInterestToPatch.Description;
+
+            return NoContent(); 
+
         }
     }
 }
