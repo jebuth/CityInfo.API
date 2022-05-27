@@ -1,5 +1,8 @@
+using CityInfo.API;
+using CityInfo.API.DbContexts;
 using CityInfo.API.Services;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 // initialize serilog
@@ -26,9 +29,20 @@ builder.Services.AddControllers(options => {
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<FileExtensionContentTypeProvider>();
-builder.Services.AddTransient<LocalMailService>();
 
+// registers db context with scoped lifetime
+builder.Services.AddDbContext<CityInfoContext>(
+    dbContextOptions => dbContextOptions.UseSqlite("Data Source=CityInfo.db"));
 
+// inject mail service based on compiler directive
+#if DEBUG
+builder.Services.AddTransient<IMailService, LocalMailService>();
+#else
+builder.Services.AddTransient<IMailService, CloudMailService>();
+#endif
+
+// inject city data store
+builder.Services.AddSingleton<CitiesDataStore>();
 
 var app = builder.Build();
 
