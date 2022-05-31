@@ -1,4 +1,6 @@
-﻿using CityInfo.API.Models;
+﻿using AutoMapper;
+using CityInfo.API.Models;
+using CityInfo.API.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CityInfo.API.Controllers
@@ -7,30 +9,35 @@ namespace CityInfo.API.Controllers
     [Route("api/cities")]
     public class CitiesController : ControllerBase
     {
-        private readonly CitiesDataStore _cityDataStore;
+        private readonly ICityInfoRepository _cityInfoRepository;
+        private readonly IMapper _mapper;
 
-        public CitiesController(CitiesDataStore cityDataStore)
+        public CitiesController(ICityInfoRepository cityInfoRepository, IMapper mapper)
         {
-            _cityDataStore = cityDataStore ?? throw new ArgumentException(nameof(cityDataStore));
+            _cityInfoRepository = cityInfoRepository ?? throw new ArgumentException(nameof(_cityInfoRepository));
+            _mapper = mapper ?? throw new ArgumentException(nameof(_mapper));
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<CityDto>> GetCities()
+        public async Task<ActionResult<IEnumerable<CityWithoutPointsOfInterestDto>>> GetCities()
         {
-            return Ok(_cityDataStore.Cities);
+            var cities = await _cityInfoRepository.GetCitiesAsync();
+
+            return Ok(_mapper.Map<IEnumerable<CityWithoutPointsOfInterestDto>>(cities));
         }
 
         [HttpGet("{id}")]
-        public ActionResult<CityDto> GetCity(int id)
+        public async Task<IActionResult> GetCity(int id, bool includePointsOfInterest = false)
         {
-            var city = _cityDataStore.Cities.FirstOrDefault(c => c.Id.Equals(id));
+            var city = await _cityInfoRepository.GetCityAsync(id, includePointsOfInterest);
 
-            if(city == null)
-            {
+            if (city == null)
                 return NotFound();
-            }
 
-            return Ok(city);
+            if (includePointsOfInterest)
+                return Ok(_mapper.Map<CityDto>(city));
+
+            return Ok(_mapper.Map<CityWithoutPointsOfInterestDto>(city));
         }
     }
 }
